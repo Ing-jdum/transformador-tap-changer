@@ -8,12 +8,12 @@
 // Break relays: isolate the autotransformer line from the load
 // before the tap-select relay is changed. Both operate together.
 constexpr uint8_t PIN_BREAK_1 = 2;
-constexpr uint8_t PIN_BREAK_2 = 3;
+constexpr uint8_t PIN_BREAK_2 = 4;
 
 // Tap-select relays: exactly one is energized at a time.
-constexpr uint8_t PIN_TAP_LOW  = 4;  // ~90V tap
-constexpr uint8_t PIN_TAP_MID  = 5;  // ~110V tap (startup default)
-constexpr uint8_t PIN_TAP_HIGH = 6;  // ~127V tap
+constexpr uint8_t PIN_TAP_LOW  = 5;  // ~90V tap
+constexpr uint8_t PIN_TAP_MID  = 6;  // ~110V tap (startup default)
+constexpr uint8_t PIN_TAP_HIGH = 7;  // ~127V tap
 
 // Most opto-isolated relay boards (Elegoo etc.) pull the input LOW to energize.
 constexpr bool RELAY_ACTIVE_LOW = true;
