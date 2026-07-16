@@ -46,11 +46,12 @@ constexpr Tap STARTUP_TAP = Tap::MID_110V;
 // boost) and to LOW when overshooting (needs buck). Once on an end tap,
 // it unwinds back to MID only after it has over-corrected past that
 // tap's own exit bound — never jumps directly LOW<->HIGH, always via MID.
-constexpr float MID_LOWER_BOUND = 95.0f;   // MID -> HIGH when Vload < this  (undershoot, needs boost)
-constexpr float MID_UPPER_BOUND = 118.0f;  // MID -> LOW  when Vload > this  (overshoot, needs buck)
+constexpr float MID_LOWER_BOUND = 95.0f;    // MID -> HIGH (boost)
+constexpr float MID_UPPER_BOUND = 113.5f;   // MID -> LOW  (buck)
 
-constexpr float LOW_EXIT_BOUND  = 100.0f;  // LOW  -> MID when Vload < this  (over-bucked, ease off)
-constexpr float HIGH_EXIT_BOUND = 113.0f;  // HIGH -> MID when Vload > this  (over-boosted, ease off)
+// Return thresholds (provide hysteresis)
+constexpr float LOW_EXIT_BOUND  = 93.0f;    // LOW  -> MID
+constexpr float HIGH_EXIT_BOUND = 115.5f;   // HIGH -> MID
 
 // =============================================================
 // Timing
