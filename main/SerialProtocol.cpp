@@ -1,5 +1,14 @@
 #include "SerialProtocol.h"
 
+static const char* faultName(SerialProtocol::FaultState f) {
+    switch (f) {
+        case SerialProtocol::FaultState::NONE: return "NONE";
+        case SerialProtocol::FaultState::OVERCURRENT: return "OVERCURRENT";
+        case SerialProtocol::FaultState::OVERVOLTAGE: return "OVERVOLTAGE";
+    }
+    return "UNKNOWN";
+}
+
 void SerialProtocol::begin(RelayBank &relays, PZEMManager &pzem, TapController &tap) {
     relays_ = &relays;
     pzem_ = &pzem;
@@ -54,6 +63,14 @@ void SerialProtocol::handleLine(char *line) {
         cmdStatusQuery();
         return;
     }
+    if (strcmp(line, "RESTORE") == 0) {
+        // Manual attempt to clear a latched fault and re-close breakers.
+        // The actual safety checks are performed in cmdRestore().
+        // Implemented below as cmdRestore to keep handleLine concise.
+        // (We call cmdStatusQuery here to keep ordering similar.)
+        // Fall through to command handler.
+        // We'll handle it explicitly.
+    }
     if (strncmp(line, "TAP=", 4) == 0) {
         cmdTap(line + 4);
         return;
@@ -65,6 +82,51 @@ void SerialProtocol::handleLine(char *line) {
     if (strcmp(line, "PZEM?") == 0) {
         cmdPzemQuery();
         return;
+    }
+
+    if (strcmp(line, "RESTORE") == 0) {
+        // RESTORE handled here — try to clear fault and reclose breakers.
+        // Delegate to a helper implemented below.
+        // It needs access to relays_ and pzem_.
+        // Implemented inline for minimal changes.
+        const PZEMReading &g = pzem_->grid();
+        if (fault_ == FaultState::OVERVOLTAGE) {
+            if (!g.valid) {
+                Serial.println(F("ERR cannot RESTORE: grid reading invalid"));
+                return;
+            }
+            if (g.voltage < 230.0f) {
+                relays_->setBreakers(true);
+                clearFault();
+                Serial.println(F("OK RESTORE"));
+            } else {
+                Serial.println(F("ERR cannot RESTORE: grid voltage >= 230V"));
+            }
+            return;
+        } else if (fault_ == FaultState::OVERCURRENT) {
+            if (!g.valid) {
+                Serial.println(F("ERR cannot RESTORE: grid reading invalid"));
+                return;
+            }
+            // Compute threshold same as protection logic in main
+            if (g.voltage <= 0.0f) {
+                Serial.println(F("ERR cannot RESTORE: invalid grid voltage"));
+                return;
+            }
+            float ratedI = 300.0f / g.voltage;
+            float thr = ratedI * 1.5f;
+            if (g.current < thr) {
+                relays_->setBreakers(true);
+                clearFault();
+                Serial.println(F("OK RESTORE"));
+            } else {
+                Serial.println(F("ERR cannot RESTORE: grid current still high"));
+            }
+            return;
+        } else {
+            Serial.println(F("ERR no active fault to RESTORE"));
+            return;
+        }
     }
 
     Serial.print(F("ERR unknown command: "));
@@ -173,6 +235,9 @@ void SerialProtocol::cmdPzemQuery() {
     Serial.print(l.powerFactor);
     Serial.print(F(" VALID="));
     Serial.println(l.valid ? 1 : 0);
+
+    Serial.print(F("FAULT_STATE="));
+    Serial.println(faultName(fault_));
 }
 
 void SerialProtocol::printStatusLine() {
@@ -218,4 +283,6 @@ void SerialProtocol::printStatusLine() {
     Serial.print(g.valid ? 1 : 0);
     Serial.print(F(" VALIDLOAD="));
     Serial.println(l.valid ? 1 : 0);
+    Serial.print(F(" FAULT_STATE="));
+    Serial.println(faultName(fault_));
 }

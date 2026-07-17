@@ -34,6 +34,26 @@ void setup() {
 
 void loop() {
     pzem.update();
+    // Protection: automatic breaker trip on primary overcurrent or overvoltage.
+    const PZEMReading &g = pzem.grid();
+    // Only evaluate when we have a valid grid reading.
+    if (g.valid) {
+        // Overvoltage: trip if grid voltage strictly exceeds 230V.
+        if (g.voltage > 230.0f && protocol.fault() == SerialProtocol::FaultState::NONE) {
+            relays.setBreakers(false);
+            protocol.setFault(SerialProtocol::FaultState::OVERVOLTAGE);
+        }
+
+        // Overcurrent: compute rated current from 300W and apply 1.5x margin.
+        if (g.voltage > 0.0f && protocol.fault() == SerialProtocol::FaultState::NONE) {
+            float ratedI = 300.0f / g.voltage;
+            float thr = ratedI * 1.5f;
+            if (g.current > thr) {
+                relays.setBreakers(false);
+                protocol.setFault(SerialProtocol::FaultState::OVERCURRENT);
+            }
+        }
+    }
     tapController.update(pzem.load().voltage, protocol.mode());
     protocol.update();
 }

@@ -38,6 +38,12 @@ public:
 
     ControllerMode mode() const { return mode_; }
 
+    enum class FaultState : uint8_t { NONE = 0, OVERCURRENT = 1, OVERVOLTAGE = 2 };
+
+    void setFault(FaultState f) { fault_ = f; }
+    FaultState fault() const { return fault_; }
+    void clearFault() { fault_ = FaultState::NONE; }
+
 private:
     static constexpr uint8_t LINE_BUF_SIZE = 48;
 
@@ -59,4 +65,5 @@ private:
     uint8_t lineLen_ = 0;
 
     unsigned long lastStatusMs_ = 0;
+    FaultState fault_ = FaultState::NONE;
 };
